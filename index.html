@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Mirror</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #000;
+    color: #fff;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+  }
+
+  /* ── AUTH SCREEN ── */
+  #auth-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    text-align: center;
+    padding: 40px;
+  }
+  #auth-screen h1 { font-size: 2rem; font-weight: 300; letter-spacing: 0.1em; }
+  #auth-screen p  { font-size: 1rem; color: rgba(255,255,255,0.5); max-width: 480px; line-height: 1.6; }
+  #auth-btn {
+    background: #1DB954;
+    color: #000;
+    border: none;
+    border-radius: 50px;
+    padding: 16px 40px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    transition: opacity 0.2s;
+  }
+  #auth-btn:hover { opacity: 0.85; }
+  #auth-status { font-size: 0.85rem; color: rgba(255,255,255,0.4); min-height: 1.2em; }
+
+  /* ── MIRROR SCREEN ── */
+  #mirror-screen {
+    display: none;
+    flex-direction: column;
+    width: 100vw;
+    height: 100vh;
+    padding: 48px;
+  }
+
+  #track-info {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 32px;
+  }
+  #album-art {
+    width: 72px;
+    height: 72px;
+    border-radius: 8px;
+    object-fit: cover;
+    opacity: 0.9;
+    flex-shrink: 0;
+    background: rgba(255,255,255,0.05);
+  }
+  #track-meta { display: flex; flex-direction: column; gap: 4px; }
+  #track-name   { font-size: 1.4rem; font-weight: 500; }
+  #track-artist { font-size: 1rem; color: rgba(255,255,255,0.45); }
+
+  #progress-wrap {
+    height: 2px;
+    background: rgba(255,255,255,0.12);
+    border-radius: 2px;
+    margin-bottom: 48px;
+    overflow: hidden;
+  }
+  #progress-bar {
+    height: 100%;
+    background: rgba(255,255,255,0.55);
+    width: 0%;
+    transition: width 0.5s linear;
+  }
+
+  #lyrics-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .lyric-line {
+    font-size: 2.2rem;
+    font-weight: 400;
+    line-height: 1.55;
+    color: rgba(255,255,255,0.18);
+    transition: color 0.35s ease, font-size 0.35s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .lyric-line.active {
+    color: rgba(255,255,255,1);
+    font-size: 2.6rem;
+  }
+  .lyric-line.near {
+    color: rgba(255,255,255,0.45);
+  }
+
+  #status-msg {
+    font-size: 1.3rem;
+    font-weight: 300;
+    color: rgba(255,255,255,0.25);
+    letter-spacing: 0.06em;
+    text-align: center;
+  }
+
+  #clock {
+    position: fixed;
+    top: 40px;
+    right: 52px;
+    font-size: 1.1rem;
+    font-weight: 300;
+    color: rgba(255,255,255,0.3);
+    letter-spacing: 0.1em;
+  }
+</style>
+</head>
+<body>
+
+<div id="clock">--:--</div>
+
+<!-- AUTH SCREEN -->
+<div id="auth-screen">
+  <h1>Smart Mirror</h1>
+  <p>Connect your Spotify account to display real-time synced lyrics.</p>
+  <button id="auth-btn">Connect Spotify</button>
+  <div id="auth-status"></div>
+</div>
+
+<!-- MIRROR SCREEN -->
+<div id="mirror-screen">
+  <div id="track-info">
+    <img id="album-art" src="" alt="" />
+    <div id="track-meta">
+      <div id="track-name">—</div>
+      <div id="track-artist">—</div>
+    </div>
+  </div>
+  <div id="progress-wrap"><div id="progress-bar"></div></div>
+  <div id="lyrics-wrap">
+    <div id="status-msg">Nothing playing</div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────
+//  CONFIG  — replace these two values before deploying
+// ─────────────────────────────────────────────────────────────────
+const CLIENT_ID    = 'YOUR_SPOTIFY_CLIENT_ID';
+// This must exactly match what you put in your Spotify app settings.
+// Format: https://YOURUSERNAME.github.io/REPONAME
+const REDIRECT_URI = 'https://YOURUSERNAME.github.io/REPONAME';
+// ─────────────────────────────────────────────────────────────────
+
+// ── PKCE helpers ──────────────────────────────────────────────────
+function randomBytes(n) {
+  const a = new Uint8Array(n);
+  crypto.getRandomValues(a);
+  return Array.from(a, b => b.toString(16).padStart(2,'0')).join('');
+}
+function base64url(buf) {
+  return btoa(String.fromCharCode(...new Uint8Array(buf)))
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+async function sha256(str) {
+  return crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+}
+
+async function startAuth() {
+  const verifier  = randomBytes(64);
+  const challenge = base64url(await sha256(verifier));
+  sessionStorage.setItem('pkce_verifier', verifier);
+
+  const params = new URLSearchParams({
+    client_id:             CLIENT_ID,
+    response_type:         'code',
+    redirect_uri:          REDIRECT_URI,
+    scope:                 'user-read-playback-state user-read-currently-playing',
+    code_challenge_method: 'S256',
+    code_challenge:        challenge,
+  });
+  window.location.href = 'https://accounts.spotify.com/authorize?' + params;
+}
+
+async function exchangeCode(code) {
+  const verifier = sessionStorage.getItem('pkce_verifier');
+  const res = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type:    'authorization_code',
+      code,
+      redirect_uri:  REDIRECT_URI,
+      client_id:     CLIENT_ID,
+      code_verifier: verifier,
+    }),
+  });
+  const data = await res.json();
+  if (data.access_token) {
+    sessionStorage.setItem('access_token',  data.access_token);
+    sessionStorage.setItem('refresh_token', data.refresh_token);
+    sessionStorage.setItem('token_expiry',  Date.now() + data.expires_in * 1000);
+    // Clean the ?code= from the URL without triggering a reload
+    history.replaceState({}, '', window.location.pathname);
+    return true;
+  }
+  console.error('Token exchange failed:', data);
+  return false;
+}
+
+async function refreshToken() {
+  const rt = sessionStorage.getItem('refresh_token');
+  if (!rt) return false;
+  const res = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type:    'refresh_token',
+      refresh_token: rt,
+      client_id:     CLIENT_ID,
+    }),
+  });
+  const data = await res.json();
+  if (data.access_token) {
+    sessionStorage.setItem('access_token', data.access_token);
+    sessionStorage.setItem('token_expiry', Date.now() + data.expires_in * 1000);
+    if (data.refresh_token) sessionStorage.setItem('refresh_token', data.refresh_token);
+    return true;
+  }
+  return false;
+}
+
+async function getToken() {
+  const expiry = parseInt(sessionStorage.getItem('token_expiry') || '0');
+  if (Date.now() > expiry - 30000) await refreshToken();
+  return sessionStorage.getItem('access_token');
+}
+
+// ── Spotify API ───────────────────────────────────────────────────
+async function getNowPlaying() {
+  const token = await getToken();
+  if (!token) return null;
+  const res = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
+    headers: { Authorization: 'Bearer ' + token },
+  });
+  if (res.status === 204 || res.status === 401 || res.status === 404) return null;
+  if (!res.ok) return null;
+  return res.json();
+}
+
+// ── lrclib.net — synced lyrics ────────────────────────────────────
+async function fetchLyrics(title, artist, album, durationMs) {
+  const url = 'https://lrclib.net/api/get?' + new URLSearchParams({
+    track_name:  title,
+    artist_name: artist,
+    album_name:  album,
+    duration:    Math.round(durationMs / 1000),
+  });
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.syncedLyrics) return parseLRC(data.syncedLyrics);
+    if (data.plainLyrics)  return parsePlain(data.plainLyrics, durationMs);
+  } catch { /* network error */ }
+  return null;
+}
+
+function parseLRC(lrc) {
+  const lines = [];
+  for (const line of lrc.split('\n')) {
+    const m = line.match(/^\[(\d+):(\d+\.\d+)\](.*)/);
+    if (m) {
+      const ms = (parseInt(m[1]) * 60 + parseFloat(m[2])) * 1000;
+      const text = m[3].trim();
+      if (text) lines.push({ ms, text });
+    }
+  }
+  return { synced: true, lines };
+}
+
+function parsePlain(plain, durationMs) {
+  const raw = plain.split('\n').map(t => t.trim()).filter(Boolean);
+  const step = durationMs / (raw.length + 1);
+  const lines = raw.map((text, i) => ({ ms: step * (i + 1), text }));
+  return { synced: false, lines };
+}
+
+// ── DOM refs ──────────────────────────────────────────────────────
+const authScreen   = document.getElementById('auth-screen');
+const mirrorScreen = document.getElementById('mirror-screen');
+const albumArtEl   = document.getElementById('album-art');
+const trackNameEl  = document.getElementById('track-name');
+const trackArtistEl= document.getElementById('track-artist');
+const progressBarEl= document.getElementById('progress-bar');
+const lyricsWrap   = document.getElementById('lyrics-wrap');
+const statusMsg    = document.getElementById('status-msg');
+const clockEl      = document.getElementById('clock');
+
+function showMirror() {
+  authScreen.style.display   = 'none';
+  mirrorScreen.style.display = 'flex';
+}
+
+// Clock
+function updateClock() {
+  clockEl.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// ── Lyric line elements ───────────────────────────────────────────
+const VISIBLE    = 7;  // number of lines shown at once
+const ACTIVE_POS = 2;  // index of the highlighted line in the visible window
+let lineEls      = [];
+
+function buildLineEls() {
+  lyricsWrap.innerHTML = '';
+  lineEls = [];
+  for (let i = 0; i < VISIBLE; i++) {
+    const el = document.createElement('div');
+    el.className = 'lyric-line';
+    lyricsWrap.appendChild(el);
+    lineEls.push(el);
+  }
+}
+
+function renderAt(activeIdx, lines) {
+  const start = activeIdx - ACTIVE_POS;
+  for (let i = 0; i < VISIBLE; i++) {
+    const li = start + i;
+    const el = lineEls[i];
+    el.textContent = (li >= 0 && li < lines.length) ? lines[li].text : '';
+    el.className = 'lyric-line';
+    if (i === ACTIVE_POS) el.classList.add('active');
+    else if (Math.abs(i - ACTIVE_POS) === 1) el.classList.add('near');
+  }
+}
+
+function findActiveIdx(ms, lines) {
+  let idx = 0;
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].ms <= ms) idx = i; else break;
+  }
+  return idx;
+}
+
+// ── Playback state ────────────────────────────────────────────────
+let lastTrackId   = null;
+let currentLyrics = null;   // { synced, lines }
+let lastActiveIdx = -1;
+let progressMs    = 0;
+let fetchedAt     = 0;
+let durationMs    = 0;
+let isPlaying     = false;
+
+function setStatus(msg) {
+  lyricsWrap.innerHTML = '';
+  lineEls = [];
+  const d = document.createElement('div');
+  d.id = 'status-msg';
+  d.textContent = msg;
+  d.style.cssText = 'font-size:1.3rem;font-weight:300;color:rgba(255,255,255,0.25);letter-spacing:.06em;text-align:center';
+  lyricsWrap.appendChild(d);
+}
+
+async function poll() {
+  const data = await getNowPlaying();
+
+  if (!data || !data.item) {
+    setStatus('Nothing playing');
+    lastTrackId = null; currentLyrics = null;
+    trackNameEl.textContent = '—'; trackArtistEl.textContent = '—';
+    albumArtEl.src = ''; progressBarEl.style.width = '0%';
+    return;
+  }
+
+  const item = data.item;
+  isPlaying  = data.is_playing;
+  progressMs = data.progress_ms || 0;
+  fetchedAt  = Date.now();
+  durationMs = item.duration_ms || 0;
+
+  // New track?
+  if (item.id !== lastTrackId) {
+    lastTrackId   = item.id;
+    lastActiveIdx = -1;
+    currentLyrics = null;
+
+    trackNameEl.textContent   = item.name;
+    trackArtistEl.textContent = item.artists.map(a => a.name).join(', ');
+    const img = item.album?.images?.[1] || item.album?.images?.[0];
+    albumArtEl.src = img?.url || '';
+
+    setStatus('Loading lyrics…');
+
+    const artist = item.artists[0]?.name || '';
+    const album  = item.album?.name || '';
+    currentLyrics = await fetchLyrics(item.name, artist, album, durationMs);
+
+    if (currentLyrics?.lines?.length) {
+      buildLineEls();
+      lastActiveIdx = -1;
+    } else {
+      setStatus('No lyrics found');
+    }
+  }
+
+  updateProgress();
+}
+
+function updateProgress() {
+  if (!durationMs) return;
+  const elapsed    = isPlaying ? Date.now() - fetchedAt : 0;
+  const estimated  = Math.min(progressMs + elapsed, durationMs);
+  progressBarEl.style.width = ((estimated / durationMs) * 100).toFixed(2) + '%';
+
+  if (currentLyrics?.lines?.length && lineEls.length) {
+    const idx = findActiveIdx(estimated, currentLyrics.lines);
+    if (idx !== lastActiveIdx) {
+      lastActiveIdx = idx;
+      renderAt(idx, currentLyrics.lines);
+    }
+  }
+}
+
+// Smooth RAF loop for progress + lyric sync
+function tick() {
+  updateProgress();
+  requestAnimationFrame(tick);
+}
+
+// ── Boot ──────────────────────────────────────────────────────────
+document.getElementById('auth-btn').addEventListener('click', startAuth);
+
+async function boot() {
+  const params = new URLSearchParams(window.location.search);
+  const code   = params.get('code');
+
+  if (code) {
+    document.getElementById('auth-status').textContent = 'Connecting to Spotify…';
+    const ok = await exchangeCode(code);
+    if (!ok) {
+      document.getElementById('auth-status').textContent = 'Authentication failed — please try again.';
+      return;
+    }
+  }
+
+  if (sessionStorage.getItem('access_token')) {
+    showMirror();
+    requestAnimationFrame(tick);
+    await poll();
+    setInterval(poll, 3000);
+  }
+}
+
+boot();
+</script>
+</body>
+</html>
