@@ -591,15 +591,17 @@ function applyLayout(layout) {
 }
 
 // ── Settings ──────────────────────────────────────────────────────
-let weatherTimer=null, commuteTimer=null, lastLocation='', lastDests=[];
+let weatherTimer=null, commuteTimer=null, lastLocation='__unset__', lastDests=[];
 
 async function applySettings(settings) {
   if (!settings) return;
-  if (settings.location && settings.location !== lastLocation) {
-    lastLocation = settings.location;
-    if (weatherTimer) clearInterval(weatherTimer);
-    await updateWeather(settings.location);
-    weatherTimer = setInterval(()=>updateWeather(settings.location), 10*60*1000);
+  if (settings.location) {
+    if (settings.location !== lastLocation) {
+      lastLocation = settings.location;
+      if (weatherTimer) clearInterval(weatherTimer);
+      await updateWeather(settings.location);
+      weatherTimer = setInterval(()=>updateWeather(settings.location), 10*60*1000);
+    }
   }
   const dests = settings.destinations||[];
   if (JSON.stringify(dests)!==JSON.stringify(lastDests) && settings.location) {
@@ -610,14 +612,18 @@ async function applySettings(settings) {
   }
 }
 async function updateWeather(location) {
+  document.getElementById('weather-desc').textContent = 'Loading...';
   try {
     const geo = await geocode(location);
-    if (!geo) return;
+    if (!geo) { document.getElementById('weather-desc').textContent = 'Location not found'; return; }
     const w = await fetchWeather(geo.lat, geo.lng);
     document.getElementById('weather-temp').textContent = Math.round(w.temperature_2m)+'°';
     document.getElementById('weather-desc').textContent = weatherDesc(w.weathercode);
     document.getElementById('weather-loc').textContent  = location;
-  } catch {}
+  } catch(e) {
+    document.getElementById('weather-desc').textContent = 'Error';
+    console.error('Weather error:', e);
+  }
 }
 async function updateCommute(origin, destinations) {
   const el = document.getElementById('commute-destinations');
