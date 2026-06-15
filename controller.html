@@ -12,25 +12,58 @@ body {
   color:#fff;
   font-family:'Helvetica Neue',Arial,sans-serif;
   min-height:100vh;
-  padding:0 0 80px;
+  padding:0 0 90px;
 }
 
 header {
   padding:24px 20px 16px;
   border-bottom:1px solid rgba(255,255,255,0.08);
-  display:flex;
-  align-items:center;
-  gap:12px;
 }
-header h1 {
-  font-size:1.1rem;
-  font-weight:500;
-  letter-spacing:0.05em;
+header h1 { font-size:1.1rem; font-weight:500; letter-spacing:0.05em; }
+header p  { font-size:0.75rem; color:rgba(255,255,255,0.3); margin-top:4px; }
+
+/* Setup screen */
+#setup-screen {
+  padding:24px 20px;
 }
-header span {
-  font-size:0.75rem;
-  color:rgba(255,255,255,0.3);
+#setup-screen h2 { font-size:1rem; font-weight:500; margin-bottom:8px; }
+#setup-screen p  { font-size:0.85rem; color:rgba(255,255,255,0.4); line-height:1.6; margin-bottom:20px; }
+.setup-steps { display:flex; flex-direction:column; gap:12px; margin-bottom:24px; }
+.step {
+  background:rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:12px;
+  padding:14px;
+  font-size:0.85rem;
+  line-height:1.6;
+  color:rgba(255,255,255,0.7);
 }
+.step strong { color:#fff; display:block; margin-bottom:4px; }
+.step a { color:#1DB954; text-decoration:none; }
+#api-key-input {
+  width:100%;
+  background:rgba(255,255,255,0.07);
+  border:1px solid rgba(255,255,255,0.15);
+  border-radius:10px;
+  color:#fff;
+  font-size:0.9rem;
+  padding:12px 14px;
+  outline:none;
+  margin-bottom:12px;
+}
+#api-key-input::placeholder { color:rgba(255,255,255,0.25); }
+#setup-btn {
+  width:100%;
+  background:#1DB954;
+  border:none;
+  border-radius:12px;
+  color:#000;
+  font-size:1rem;
+  font-weight:600;
+  padding:14px;
+  cursor:pointer;
+}
+#setup-error { font-size:0.8rem; color:#ff6b6b; margin-top:8px; min-height:1.2em; }
 
 .section {
   padding:20px;
@@ -44,268 +77,177 @@ header span {
   margin-bottom:16px;
 }
 
-/* Module visibility toggles */
 .module-row {
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:12px 0;
-  border-bottom:1px solid rgba(255,255,255,0.05);
+  display:flex; align-items:center; justify-content:space-between;
+  padding:12px 0; border-bottom:1px solid rgba(255,255,255,0.05);
 }
 .module-row:last-child { border-bottom:none; }
-.module-name { font-size:0.95rem; font-weight:400; }
+.module-name { font-size:0.95rem; }
 .module-sub  { font-size:0.75rem; color:rgba(255,255,255,0.3); margin-top:2px; }
 
-/* Toggle switch */
-.toggle {
-  position:relative;
-  width:44px; height:26px; flex-shrink:0;
-}
+.toggle { position:relative; width:44px; height:26px; flex-shrink:0; }
 .toggle input { opacity:0; width:0; height:0; }
 .toggle-track {
   position:absolute; inset:0;
-  background:rgba(255,255,255,0.15);
-  border-radius:13px;
-  cursor:pointer;
-  transition:background 0.3s;
+  background:rgba(255,255,255,0.15); border-radius:13px;
+  cursor:pointer; transition:background 0.3s;
 }
 .toggle input:checked + .toggle-track { background:#1DB954; }
 .toggle-track::after {
-  content:'';
-  position:absolute;
-  top:3px; left:3px;
-  width:20px; height:20px;
-  border-radius:50%;
-  background:#fff;
+  content:''; position:absolute; top:3px; left:3px;
+  width:20px; height:20px; border-radius:50%; background:#fff;
   transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);
 }
 .toggle input:checked + .toggle-track::after { transform:translateX(18px); }
 
-/* Position grid */
 .position-grid {
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:8px;
-  margin-top:12px;
+  display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:12px;
 }
 .pos-btn {
-  background:rgba(255,255,255,0.07);
-  border:1px solid rgba(255,255,255,0.1);
-  border-radius:10px;
-  color:rgba(255,255,255,0.6);
-  font-size:0.75rem;
-  padding:10px 4px;
-  cursor:pointer;
-  text-align:center;
-  transition:background 0.2s, border-color 0.2s, color 0.2s;
-  line-height:1.3;
-}
-.pos-btn:active { background:rgba(255,255,255,0.15); }
-.pos-btn.active {
-  background:rgba(255,255,255,0.15);
-  border-color:rgba(255,255,255,0.4);
-  color:#fff;
-}
-.pos-btn .icon { font-size:1.1rem; display:block; margin-bottom:3px; }
-
-/* Module selector */
-.module-select-wrap {
-  display:flex;
-  gap:8px;
-  flex-wrap:wrap;
-  margin-bottom:16px;
-}
-.module-chip {
-  background:rgba(255,255,255,0.07);
-  border:1px solid rgba(255,255,255,0.1);
-  border-radius:20px;
-  color:rgba(255,255,255,0.5);
-  font-size:0.8rem;
-  padding:6px 14px;
-  cursor:pointer;
+  background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.1);
+  border-radius:10px; color:rgba(255,255,255,0.6); font-size:0.75rem;
+  padding:10px 4px; cursor:pointer; text-align:center; line-height:1.3;
   transition:all 0.2s;
 }
-.module-chip.active {
-  background:rgba(255,255,255,0.15);
-  border-color:rgba(255,255,255,0.4);
-  color:#fff;
-}
+.pos-btn:active { background:rgba(255,255,255,0.15); }
+.pos-btn.active { background:rgba(255,255,255,0.15); border-color:rgba(255,255,255,0.4); color:#fff; }
+.pos-btn .icon  { font-size:1.1rem; display:block; margin-bottom:3px; }
 
-/* Inputs */
 input[type=text] {
-  width:100%;
-  background:rgba(255,255,255,0.07);
-  border:1px solid rgba(255,255,255,0.12);
-  border-radius:10px;
-  color:#fff;
-  font-size:0.95rem;
-  padding:12px 14px;
-  outline:none;
-  margin-bottom:10px;
-  transition:border-color 0.2s;
+  width:100%; background:rgba(255,255,255,0.07);
+  border:1px solid rgba(255,255,255,0.12); border-radius:10px;
+  color:#fff; font-size:0.95rem; padding:12px 14px;
+  outline:none; margin-bottom:10px; transition:border-color 0.2s;
 }
 input[type=text]:focus { border-color:rgba(255,255,255,0.4); }
 input[type=text]::placeholder { color:rgba(255,255,255,0.25); }
 
-/* Destination rows */
-.dest-row {
-  display:flex;
-  gap:8px;
-  margin-bottom:8px;
-  align-items:center;
-}
+.dest-row { display:flex; gap:8px; margin-bottom:8px; align-items:center; }
 .dest-row input { margin-bottom:0; flex:1; }
 .dest-row input:first-child { max-width:100px; }
 .del-btn {
-  background:none;
-  border:1px solid rgba(255,255,255,0.15);
-  border-radius:8px;
-  color:rgba(255,255,255,0.4);
-  font-size:1.1rem;
-  width:38px; height:38px;
-  cursor:pointer;
-  flex-shrink:0;
-  display:flex; align-items:center; justify-content:center;
-  transition:all 0.2s;
+  background:none; border:1px solid rgba(255,255,255,0.15);
+  border-radius:8px; color:rgba(255,255,255,0.4); font-size:1.1rem;
+  width:38px; height:38px; cursor:pointer; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center; transition:all 0.2s;
 }
 .del-btn:active { background:rgba(255,0,0,0.2); border-color:red; color:red; }
 
 .add-btn {
-  background:rgba(255,255,255,0.07);
-  border:1px solid rgba(255,255,255,0.12);
-  border-radius:10px;
-  color:rgba(255,255,255,0.6);
-  font-size:0.85rem;
-  padding:10px;
-  cursor:pointer;
-  width:100%;
-  text-align:center;
-  margin-top:4px;
-  transition:all 0.2s;
+  background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.12);
+  border-radius:10px; color:rgba(255,255,255,0.6); font-size:0.85rem;
+  padding:10px; cursor:pointer; width:100%; text-align:center;
+  margin-top:4px; transition:all 0.2s;
 }
 .add-btn:active { background:rgba(255,255,255,0.15); }
 
-/* Save bar */
-#save-bar {
-  position:fixed;
-  bottom:0; left:0; right:0;
-  background:#0a0a0a;
-  border-top:1px solid rgba(255,255,255,0.08);
-  padding:12px 20px;
-  display:flex;
-  gap:10px;
-}
-#save-btn {
-  flex:1;
-  background:#1DB954;
-  border:none;
-  border-radius:12px;
-  color:#000;
-  font-size:1rem;
-  font-weight:600;
-  padding:14px;
-  cursor:pointer;
-  transition:opacity 0.2s;
-}
-#save-btn:active { opacity:0.8; }
-#save-status {
-  font-size:0.8rem;
-  color:rgba(255,255,255,0.35);
-  display:flex;
-  align-items:center;
-  min-width:60px;
-}
-
-/* Mirror preview */
 #preview {
-  position:relative;
-  background:#111;
-  border:1px solid rgba(255,255,255,0.1);
-  border-radius:12px;
-  aspect-ratio:16/9;
-  margin-bottom:16px;
-  overflow:hidden;
+  position:relative; background:#111;
+  border:1px solid rgba(255,255,255,0.1); border-radius:12px;
+  aspect-ratio:16/9; margin-bottom:16px; overflow:hidden;
 }
 .preview-mod {
-  position:absolute;
-  background:rgba(255,255,255,0.12);
-  border:1px solid rgba(255,255,255,0.2);
-  border-radius:4px;
-  font-size:0.45rem;
-  color:rgba(255,255,255,0.7);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  text-align:center;
-  padding:2px;
-  cursor:pointer;
-  transition:background 0.2s, border-color 0.2s;
-  line-height:1.2;
+  position:absolute; background:rgba(255,255,255,0.12);
+  border:1px solid rgba(255,255,255,0.2); border-radius:4px;
+  font-size:0.45rem; color:rgba(255,255,255,0.7);
+  display:flex; align-items:center; justify-content:center;
+  text-align:center; padding:2px; cursor:pointer; transition:all 0.2s; line-height:1.2;
 }
-.preview-mod.selected {
-  background:rgba(29,185,84,0.3);
-  border-color:#1DB954;
-  color:#fff;
+.preview-mod.selected { background:rgba(29,185,84,0.3); border-color:#1DB954; color:#fff; }
+.preview-mod.hidden-mod { opacity:0.2; }
+
+#save-bar {
+  position:fixed; bottom:0; left:0; right:0;
+  background:#0a0a0a; border-top:1px solid rgba(255,255,255,0.08);
+  padding:12px 20px; display:flex; gap:10px;
 }
-.preview-mod.hidden-mod {
-  opacity:0.2;
+#save-btn {
+  flex:1; background:#1DB954; border:none; border-radius:12px;
+  color:#000; font-size:1rem; font-weight:600; padding:14px;
+  cursor:pointer; transition:opacity 0.2s;
 }
+#save-btn:active { opacity:0.8; }
+#save-status { font-size:0.8rem; color:rgba(255,255,255,0.35); display:flex; align-items:center; min-width:70px; }
+
+#main-screen { display:none; }
 </style>
 </head>
 <body>
 
 <header>
-  <div>
-    <h1>Mirror Controller</h1>
-    <span>Changes sync to your mirror instantly</span>
-  </div>
+  <h1>Mirror Controller</h1>
+  <p id="header-sub">Set up cloud sync to control your mirror</p>
 </header>
 
-<!-- LOCATION & WEATHER -->
-<div class="section">
-  <div class="section-title">Location & Weather</div>
-  <input type="text" id="location-input" placeholder="e.g. Mount Pleasant, MI" />
-</div>
-
-<!-- COMMUTE DESTINATIONS -->
-<div class="section">
-  <div class="section-title">Commute Destinations</div>
-  <div id="dest-list"></div>
-  <button class="add-btn" id="add-dest">+ Add destination</button>
-</div>
-
-<!-- MODULE VISIBILITY -->
-<div class="section">
-  <div class="section-title">Modules</div>
-  <div id="module-toggles"></div>
-</div>
-
-<!-- LAYOUT -->
-<div class="section">
-  <div class="section-title">Layout</div>
-  <div id="preview">
-    <div class="preview-mod" id="pv-mod-clock"    style="top:4%;right:3%;width:18%;height:16%">Clock</div>
-    <div class="preview-mod" id="pv-mod-weather"  style="top:4%;left:3%;width:16%;height:16%">Weather</div>
-    <div class="preview-mod" id="pv-mod-lyrics"   style="top:30%;left:20%;width:60%;height:40%">Lyrics</div>
-    <div class="preview-mod" id="pv-mod-spotify"  style="bottom:4%;left:3%;width:30%;height:18%">Spotify</div>
-    <div class="preview-mod" id="pv-mod-commute"  style="bottom:4%;right:3%;width:22%;height:22%">Commute</div>
-    <div class="preview-mod" id="pv-mod-qr"       style="bottom:4%;left:38%;width:8%;height:14%">QR</div>
+<!-- SETUP SCREEN (first time only) -->
+<div id="setup-screen">
+  <h2>Connect to your mirror</h2>
+  <p>The controller uses JSONBin to sync settings to your mirror over the internet. It's free and takes 30 seconds to set up.</p>
+  <div class="setup-steps">
+    <div class="step">
+      <strong>Step 1 — Create a free account</strong>
+      Go to <a href="https://jsonbin.io" target="_blank">jsonbin.io</a> and sign up for free.
+    </div>
+    <div class="step">
+      <strong>Step 2 — Get your API key</strong>
+      After logging in, click your profile icon → API Keys → copy your <strong>Master Key</strong>.
+    </div>
+    <div class="step">
+      <strong>Step 3 — Paste it below</strong>
+      The app will automatically create a bin and start syncing.
+    </div>
   </div>
-  <p style="font-size:0.75rem;color:rgba(255,255,255,0.3);margin-bottom:12px">Tap a module to select it, then choose its position</p>
-  <div class="position-grid" id="pos-grid">
-    <button class="pos-btn" data-pos="top-left">    <span class="icon">↖</span>Top Left</button>
-    <button class="pos-btn" data-pos="top-center">  <span class="icon">↑</span>Top Center</button>
-    <button class="pos-btn" data-pos="top-right">   <span class="icon">↗</span>Top Right</button>
-    <button class="pos-btn" data-pos="mid-left">    <span class="icon">←</span>Mid Left</button>
-    <button class="pos-btn" data-pos="center">      <span class="icon">◎</span>Center</button>
-    <button class="pos-btn" data-pos="mid-right">   <span class="icon">→</span>Mid Right</button>
-    <button class="pos-btn" data-pos="bottom-left"> <span class="icon">↙</span>Bot Left</button>
-    <button class="pos-btn" data-pos="bottom-center"><span class="icon">↓</span>Bot Center</button>
-    <button class="pos-btn" data-pos="bottom-right"><span class="icon">↘</span>Bot Right</button>
-  </div>
+  <input type="text" id="api-key-input" placeholder="Paste your JSONBin Master Key here" />
+  <button id="setup-btn">Connect</button>
+  <div id="setup-error"></div>
 </div>
 
-<div id="save-bar">
+<!-- MAIN CONTROLLER (after setup) -->
+<div id="main-screen">
+
+  <div class="section">
+    <div class="section-title">Location & Weather</div>
+    <input type="text" id="location-input" placeholder="e.g. Mount Pleasant, MI" />
+  </div>
+
+  <div class="section">
+    <div class="section-title">Commute Destinations</div>
+    <div id="dest-list"></div>
+    <button class="add-btn" id="add-dest">+ Add destination</button>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Modules</div>
+    <div id="module-toggles"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Layout</div>
+    <div id="preview">
+      <div class="preview-mod" id="pv-mod-clock"   style="top:4%;right:3%;width:18%;height:16%">Clock</div>
+      <div class="preview-mod" id="pv-mod-weather" style="top:4%;left:3%;width:16%;height:16%">Weather</div>
+      <div class="preview-mod" id="pv-mod-lyrics"  style="top:30%;left:20%;width:60%;height:40%">Lyrics</div>
+      <div class="preview-mod" id="pv-mod-spotify" style="bottom:4%;left:3%;width:30%;height:18%">Spotify</div>
+      <div class="preview-mod" id="pv-mod-commute" style="bottom:4%;right:3%;width:22%;height:22%">Commute</div>
+      <div class="preview-mod" id="pv-mod-qr"      style="bottom:4%;left:38%;width:8%;height:14%">QR</div>
+    </div>
+    <p style="font-size:0.75rem;color:rgba(255,255,255,0.3);margin-bottom:12px">Tap a module to select it, then pick its position</p>
+    <div class="position-grid" id="pos-grid">
+      <button class="pos-btn" data-pos="top-left">    <span class="icon">↖</span>Top Left</button>
+      <button class="pos-btn" data-pos="top-center">  <span class="icon">↑</span>Top Center</button>
+      <button class="pos-btn" data-pos="top-right">   <span class="icon">↗</span>Top Right</button>
+      <button class="pos-btn" data-pos="mid-left">    <span class="icon">←</span>Mid Left</button>
+      <button class="pos-btn" data-pos="center">      <span class="icon">◎</span>Center</button>
+      <button class="pos-btn" data-pos="mid-right">   <span class="icon">→</span>Mid Right</button>
+      <button class="pos-btn" data-pos="bottom-left"> <span class="icon">↙</span>Bot Left</button>
+      <button class="pos-btn" data-pos="bottom-center"><span class="icon">↓</span>Bot Center</button>
+      <button class="pos-btn" data-pos="bottom-right"><span class="icon">↘</span>Bot Right</button>
+    </div>
+  </div>
+
+</div>
+
+<div id="save-bar" style="display:none">
   <button id="save-btn">Save & Sync to Mirror</button>
   <div id="save-status"></div>
 </div>
@@ -332,45 +274,147 @@ const POS_MAP = {
   'bottom-right':  {bottom:'48px',right:'52px', top:'',        left:'',     transform:''},
 };
 
-// State
-let state = {
-  location: '',
-  destinations: [],
-  modules: {},  // id -> { hidden, pos }
-};
-
-// Load saved state
-try {
-  const s = localStorage.getItem('mirror_settings');
-  if (s) { const p = JSON.parse(s); state.location = p.location||''; state.destinations = p.destinations||[]; }
-  const l = localStorage.getItem('mirror_layout');
-  if (l) {
-    const layout = JSON.parse(l);
-    for (const id of Object.keys(layout)) {
-      state.modules[id] = {
-        hidden: !!layout[id].hidden,
-        pos: layout[id]._pos || 'top-right',
-      };
-    }
-  }
-} catch {}
-
-// Default module positions
 const DEFAULT_POS = {
   'mod-clock':'top-right','mod-weather':'top-left','mod-lyrics':'center',
   'mod-spotify':'bottom-left','mod-commute':'bottom-right','mod-qr':'bottom-center',
 };
+
+let apiKey = '';
+let binId  = '';
+let state  = {
+  location: '',
+  destinations: [],
+  modules: {},
+};
+let selectedModule = null;
+
+// Init module state
 for (const m of MODULES) {
-  if (!state.modules[m.id]) state.modules[m.id] = {hidden:false, pos:DEFAULT_POS[m.id]||'center'};
+  state.modules[m.id] = {hidden:false, pos:DEFAULT_POS[m.id]||'center'};
 }
 
-// ── Location input ────────────────────────────────────────────────
-document.getElementById('location-input').value = state.location;
-document.getElementById('location-input').addEventListener('input', e => {
-  state.location = e.target.value;
+// ── JSONBin API ───────────────────────────────────────────────────
+async function createBin(key, data) {
+  const r = await fetch('https://api.jsonbin.io/v3/b', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Master-Key': key,
+      'X-Bin-Name': 'smart-mirror',
+      'X-Bin-Private': 'true',
+    },
+    body: JSON.stringify(data),
+  });
+  if (!r.ok) throw new Error('Failed to create bin');
+  const d = await r.json();
+  return d.metadata.id;
+}
+
+async function updateBin(key, id, data) {
+  const r = await fetch(`https://api.jsonbin.io/v3/b/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Master-Key': key,
+    },
+    body: JSON.stringify(data),
+  });
+  return r.ok;
+}
+
+async function readBin(key, id) {
+  const r = await fetch(`https://api.jsonbin.io/v3/b/${id}/latest`, {
+    headers: { 'X-Master-Key': key, 'X-Bin-Meta': 'false' }
+  });
+  if (!r.ok) return null;
+  return r.json();
+}
+
+// ── Setup ─────────────────────────────────────────────────────────
+document.getElementById('setup-btn').addEventListener('click', async () => {
+  const key = document.getElementById('api-key-input').value.trim();
+  const errEl = document.getElementById('setup-error');
+  if (!key) { errEl.textContent = 'Please paste your API key.'; return; }
+
+  document.getElementById('setup-btn').textContent = 'Connecting…';
+  errEl.textContent = '';
+
+  try {
+    // Try to create a bin to verify the key works
+    const payload = buildPayload();
+    const id = await createBin(key, payload);
+    // Save to localStorage so the mirror can find it
+    localStorage.setItem('jsonbin_key', key);
+    localStorage.setItem('jsonbin_id',  id);
+    apiKey = key;
+    binId  = id;
+    showMainScreen();
+  } catch(e) {
+    errEl.textContent = 'Could not connect — double-check your Master Key.';
+    document.getElementById('setup-btn').textContent = 'Connect';
+  }
 });
 
-// ── Destinations ──────────────────────────────────────────────────
+// ── Check if already set up ───────────────────────────────────────
+async function init() {
+  const key = localStorage.getItem('jsonbin_key');
+  const id  = localStorage.getItem('jsonbin_id');
+  if (key && id) {
+    apiKey = key; binId = id;
+    // Load existing config
+    try {
+      const config = await readBin(key, id);
+      if (config) {
+        if (config.settings) {
+          state.location = config.settings.location || '';
+          state.destinations = config.settings.destinations || [];
+        }
+        if (config.layout) {
+          for (const m of MODULES) {
+            const cfg = config.layout[m.id];
+            if (cfg) state.modules[m.id] = { hidden:!!cfg.hidden, pos:cfg._pos||DEFAULT_POS[m.id] };
+          }
+        }
+      }
+    } catch {}
+    showMainScreen();
+  }
+}
+
+function showMainScreen() {
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('main-screen').style.display  = 'block';
+  document.getElementById('save-bar').style.display     = 'flex';
+  document.getElementById('header-sub').textContent     = 'Changes sync to your mirror in ~5 seconds';
+  renderAll();
+}
+
+// ── Build payload ─────────────────────────────────────────────────
+function buildPayload() {
+  const layout = {};
+  for (const m of MODULES) {
+    const mod = state.modules[m.id];
+    const pos = POS_MAP[mod.pos] || POS_MAP['center'];
+    layout[m.id] = { ...pos, hidden:mod.hidden, _pos:mod.pos };
+  }
+  return {
+    layout,
+    settings: {
+      location: state.location,
+      destinations: state.destinations.filter(d => d.address),
+    },
+  };
+}
+
+// ── Render ────────────────────────────────────────────────────────
+function renderAll() {
+  document.getElementById('location-input').value = state.location;
+  document.getElementById('location-input').oninput = e => { state.location = e.target.value; };
+  renderDests();
+  renderToggles();
+  updatePreview();
+}
+
 function renderDests() {
   const list = document.getElementById('dest-list');
   list.innerHTML = '';
@@ -378,33 +422,25 @@ function renderDests() {
     const row = document.createElement('div');
     row.className = 'dest-row';
     row.innerHTML = `
-      <input type="text" placeholder="Label" value="${d.label||''}" data-i="${i}" data-field="label" />
-      <input type="text" placeholder="Address or place name" value="${d.address||''}" data-i="${i}" data-field="address" />
-      <button class="del-btn" data-i="${i}">×</button>
+      <input type="text" placeholder="Label" value="${d.label||''}" />
+      <input type="text" placeholder="Address or place" value="${d.address||''}" />
+      <button class="del-btn">×</button>
     `;
+    const [labelIn, addrIn] = row.querySelectorAll('input');
+    labelIn.oninput = e => { state.destinations[i].label   = e.target.value; };
+    addrIn.oninput  = e => { state.destinations[i].address = e.target.value; };
+    row.querySelector('.del-btn').onclick = () => {
+      state.destinations.splice(i, 1); renderDests();
+    };
     list.appendChild(row);
   });
-  list.querySelectorAll('input').forEach(inp => {
-    inp.addEventListener('input', e => {
-      const i = parseInt(e.target.dataset.i);
-      const f = e.target.dataset.field;
-      state.destinations[i][f] = e.target.value;
-    });
-  });
-  list.querySelectorAll('.del-btn').forEach(btn => {
-    btn.addEventListener('click', e => {
-      state.destinations.splice(parseInt(e.target.dataset.i), 1);
-      renderDests();
-    });
-  });
 }
-renderDests();
-document.getElementById('add-dest').addEventListener('click', () => {
-  state.destinations.push({label:'', address:''});
-  renderDests();
-});
 
-// ── Module toggles ────────────────────────────────────────────────
+document.getElementById('add-dest').onclick = () => {
+  state.destinations.push({label:'',address:''});
+  renderDests();
+};
+
 function renderToggles() {
   const wrap = document.getElementById('module-toggles');
   wrap.innerHTML = '';
@@ -422,19 +458,13 @@ function renderToggles() {
         <div class="toggle-track"></div>
       </label>
     `;
-    wrap.appendChild(row);
-  }
-  wrap.querySelectorAll('input[type=checkbox]').forEach(cb => {
-    cb.addEventListener('change', e => {
+    row.querySelector('input').onchange = e => {
       state.modules[e.target.dataset.id].hidden = !e.target.checked;
       updatePreview();
-    });
-  });
+    };
+    wrap.appendChild(row);
+  }
 }
-renderToggles();
-
-// ── Layout preview ────────────────────────────────────────────────
-let selectedModule = null;
 
 function updatePreview() {
   for (const m of MODULES) {
@@ -451,44 +481,29 @@ function updatePreview() {
 
 for (const m of MODULES) {
   const el = document.getElementById('pv-'+m.id);
-  if (!el) continue;
-  el.addEventListener('click', () => {
+  if (el) el.onclick = () => {
     selectedModule = (selectedModule === m.id) ? null : m.id;
     updatePreview();
-  });
+  };
 }
-
 document.querySelectorAll('.pos-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
+  btn.onclick = () => {
     if (!selectedModule) return;
     state.modules[selectedModule].pos = btn.dataset.pos;
     updatePreview();
-  });
-});
-
-updatePreview();
-
-// ── Save ──────────────────────────────────────────────────────────
-document.getElementById('save-btn').addEventListener('click', () => {
-  // Build layout object
-  const layout = {};
-  for (const m of MODULES) {
-    const mod = state.modules[m.id];
-    const pos = POS_MAP[mod.pos] || POS_MAP['center'];
-    layout[m.id] = { ...pos, hidden: mod.hidden, _pos: mod.pos };
-  }
-  // Build settings object
-  const settings = {
-    location: state.location,
-    destinations: state.destinations.filter(d => d.address),
   };
-  localStorage.setItem('mirror_layout',   JSON.stringify(layout));
-  localStorage.setItem('mirror_settings', JSON.stringify(settings));
-
-  const st = document.getElementById('save-status');
-  st.textContent = '✓ Synced';
-  setTimeout(() => st.textContent = '', 2000);
 });
+
+// ── Save & Sync ───────────────────────────────────────────────────
+document.getElementById('save-btn').onclick = async () => {
+  const st = document.getElementById('save-status');
+  st.textContent = 'Saving…';
+  const ok = await updateBin(apiKey, binId, buildPayload());
+  st.textContent = ok ? '✓ Synced!' : '✗ Failed';
+  setTimeout(() => st.textContent = '', 3000);
+};
+
+init();
 </script>
 </body>
 </html>
