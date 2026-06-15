@@ -201,9 +201,9 @@ body {
   transition:opacity 0.3s;
 }
 #mod-qr:hover { opacity:0.7; }
-#mod-qr #qr-canvas { width:72px; height:72px; }
-#mod-qr #qr-canvas img { width:72px; height:72px; display:block; }
-#mod-qr #qr-canvas canvas { width:72px !important; height:72px !important; }
+#mod-qr #qr-canvas { width:120px; height:120px; }
+#mod-qr #qr-canvas img { width:120px !important; height:120px !important; display:block; }
+#mod-qr #qr-canvas canvas { width:120px !important; height:120px !important; }
 #mod-qr span {
   font-size:0.65rem;
   color:rgba(255,255,255,0.4);
@@ -438,16 +438,35 @@ function updateClock() {
 updateClock();
 setInterval(updateClock, 1000);
 
-// ── Layout (from controller via localStorage) ─────────────────────
+// ── JSONBin sync (cross-device) ───────────────────────────────────
+async function fetchConfig() {
+  const id  = localStorage.getItem('jsonbin_id');
+  const key = localStorage.getItem('jsonbin_key');
+  if (!id || !key) return null;
+  try {
+    const r = await fetch(`https://api.jsonbin.io/v3/b/${id}/latest`, {
+      headers: { 'X-Master-Key': key, 'X-Bin-Meta': 'false' }
+    });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch { return null; }
+}
+
+async function watchConfig() {
+  const config = await fetchConfig();
+  if (config) {
+    const hash = JSON.stringify(config);
+    if (hash !== lastConfigHash) {
+      lastConfigHash = hash;
+      if (config.layout)   applyLayout(config.layout);
+      if (config.settings) await applySettings(config.settings);
+    }
+  }
+  setTimeout(watchConfig, 5000);
+}
+
+// ── Layout ────────────────────────────────────────────────────────
 const MODULE_IDS = ['mod-clock','mod-weather','mod-lyrics','mod-spotify','mod-commute','mod-qr'];
-const DEFAULTS = {
-  'mod-clock':   {top:'40px',  right:'52px',  bottom:'',    left:''},
-  'mod-weather': {top:'40px',  left:'52px',   bottom:'',    right:''},
-  'mod-lyrics':  {top:'50%',   left:'50%',    bottom:'',    right:'', transform:'translate(-50%,-50%)'},
-  'mod-spotify': {bottom:'48px',left:'48px',  top:'',       right:''},
-  'mod-commute': {bottom:'48px',right:'52px', top:'',       left:''},
-  'mod-qr':      {bottom:'48px',left:'50%',   top:'',       right:'', transform:'translateX(-50%)'},
-};
 
 function applyLayout(layout) {
   for (const id of MODULE_IDS) {
@@ -465,37 +484,12 @@ function applyLayout(layout) {
   }
 }
 
-function loadLayout() {
-  try {
-    const raw = localStorage.getItem('mirror_layout');
-    if (raw) applyLayout(JSON.parse(raw));
-  } catch {}
-}
-
-function watchLayout() {
-  window.addEventListener('storage', e => {
-    if (e.key === 'mirror_layout' && e.newValue) {
-      try { applyLayout(JSON.parse(e.newValue)); } catch {}
-    }
-    if (e.key === 'mirror_settings') {
-      try { applySettings(JSON.parse(e.newValue)); } catch {}
-    }
-  });
-  setInterval(() => {
-    try {
-      const raw = localStorage.getItem('mirror_layout');
-      if (raw) applyLayout(JSON.parse(raw));
-      const s = localStorage.getItem('mirror_settings');
-      if (s) applySettings(JSON.parse(s));
-    } catch {}
-  }, 2000);
-}
-
 // ── Settings (location, destinations) ────────────────────────────
 let weatherTimer = null;
 let commuteTimer = null;
 let lastLocation = '';
 let lastDests    = [];
+let lastConfigHash = '';
 
 async function applySettings(settings) {
   if (!settings) return;
@@ -557,13 +551,12 @@ function buildQR() {
   try {
     new QRCode(el, {
       text: CONTROLLER,
-      width: 72, height: 72,
+      width: 120, height: 120,
       colorDark: '#ffffff', colorLight: '#000000',
       correctLevel: QRCode.CorrectLevel.L,
     });
   } catch(e) {
-    // Fallback: show URL as tiny text
-    el.style.cssText = 'font-size:8px;color:rgba(255,255,255,0.4);word-break:break-all;width:72px;line-height:1.3';
+    el.style.cssText = 'font-size:8px;color:rgba(255,255,255,0.4);word-break:break-all;width:120px;line-height:1.3';
     el.textContent = CONTROLLER;
   }
 }
@@ -680,14 +673,8 @@ async function boot() {
   if (sessionStorage.getItem('access_token')) {
     document.getElementById('auth-screen').style.display  = 'none';
     document.getElementById('mirror-screen').style.display = 'block';
-    loadLayout();
-    watchLayout();
     buildQR();
-    // Load saved settings
-    try {
-      const s = localStorage.getItem('mirror_settings');
-      if (s) await applySettings(JSON.parse(s));
-    } catch {}
+    watchConfig();
     requestAnimationFrame(tick);
     await poll();
     setInterval(poll, 3000);
