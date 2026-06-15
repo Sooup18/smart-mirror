@@ -127,12 +127,8 @@ body {
   position:fixed; inset:0; z-index:200;
   background:rgba(0,0,0,0.95);
   display:none; flex-direction:column;
-  opacity:0;
-  transition:opacity 0.35s ease;
   overflow-y:auto;
 }
-#settings-panel.open { display:flex; }
-#settings-panel.visible { opacity:1; }
 
 .settings-header {
   display:flex; align-items:center; justify-content:space-between;
@@ -343,7 +339,7 @@ body {
     <!-- RIGHT COL -->
     <div class="settings-col">
       <div class="s-section">
-        <div class="s-title">Layout — select a module</div>
+        <div class="s-title">Layout - select a module</div>
         <div class="chip-row" id="s-chips"></div>
         <div class="s-title" id="s-pos-label" style="margin-top:8px">then choose position</div>
         <div class="pos-grid" id="s-pos-grid">
@@ -481,9 +477,11 @@ function parsePlain(plain, durMs) {
 
 // ── Weather ───────────────────────────────────────────────────────
 async function geocode(location) {
-  const r = await fetch('https://maps.googleapis.com/maps/api/geocode/json?address='+encodeURIComponent(location)+'&key='+MAPS_KEY);
-  const d = await r.json();
-  if (d.results?.[0]) { const loc=d.results[0].geometry.location; return {lat:loc.lat,lng:loc.lng}; }
+  try {
+    const r = await fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(location)+'&count=1&language=en&format=json');
+    const d = await r.json();
+    if (d.results?.[0]) return {lat:d.results[0].latitude, lng:d.results[0].longitude};
+  } catch {}
   return null;
 }
 async function fetchWeather(lat, lng) {
@@ -740,13 +738,11 @@ document.getElementById('close-btn').addEventListener('click', closeSettings);
 
 function openSettings() {
   menuBtn.classList.remove('visible');
-  settingsPanel.classList.add('open');
-  requestAnimationFrame(()=>settingsPanel.classList.add('visible'));
+  settingsPanel.style.display='flex';
   renderSettingsUI();
 }
 function closeSettings() {
-  settingsPanel.classList.remove('visible');
-  setTimeout(()=>settingsPanel.classList.remove('open'), 350);
+  settingsPanel.style.display='none';
 }
 
 function loadSettingsIntoUI(settings) {
