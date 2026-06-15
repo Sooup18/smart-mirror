@@ -206,6 +206,15 @@ input[type=text]::placeholder { color:rgba(255,255,255,0.25); }
 <div id="main-screen">
 
   <div class="section">
+    <div class="section-title">Mirror Credentials</div>
+    <p style="font-size:0.8rem;color:rgba(255,255,255,0.4);line-height:1.6;margin-bottom:12px">Paste these into your <code style="color:#1DB954">index.html</code> on GitHub if you haven't already:</p>
+    <div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:12px;font-size:0.75rem;font-family:monospace;color:rgba(255,255,255,0.7);word-break:break-all;line-height:2">
+      <div>JSONBIN_KEY = '<span id="cred-key"></span>'</div>
+      <div>JSONBIN_ID &nbsp;= '<span id="cred-id"></span>'</div>
+    </div>
+  </div>
+
+  <div class="section">
     <div class="section-title">Location & Weather</div>
     <input type="text" id="location-input" placeholder="e.g. Mount Pleasant, MI" />
   </div>
@@ -344,10 +353,12 @@ document.getElementById('setup-btn').addEventListener('click', async () => {
     const payload = buildPayload();
     const id = await createBin(key, payload);
     // Save to localStorage so the mirror can find it
-    localStorage.setItem('jsonbin_key', key);
-    localStorage.setItem('jsonbin_id',  id);
     apiKey = key;
     binId  = id;
+    localStorage.setItem('jsonbin_key', key);
+    localStorage.setItem('jsonbin_id',  id);
+    // Show the bin ID so user can paste it into index.html
+    alert(`✅ Connected!\n\nYour Bin ID is:\n${id}\n\nNow open index.html on GitHub and set:\nJSONBIN_ID = '${id}'\nJSONBIN_KEY = '${key}'\n\nThen save — the mirror will start syncing!`);
     showMainScreen();
   } catch(e) {
     errEl.textContent = 'Could not connect — double-check your Master Key.';
@@ -386,6 +397,8 @@ function showMainScreen() {
   document.getElementById('main-screen').style.display  = 'block';
   document.getElementById('save-bar').style.display     = 'flex';
   document.getElementById('header-sub').textContent     = 'Changes sync to your mirror in ~5 seconds';
+  document.getElementById('cred-key').textContent = apiKey;
+  document.getElementById('cred-id').textContent  = binId;
   renderAll();
 }
 
