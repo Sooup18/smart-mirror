@@ -439,13 +439,15 @@ updateClock();
 setInterval(updateClock, 1000);
 
 // ── JSONBin sync (cross-device) ───────────────────────────────────
+// These get filled in after you set up the controller for the first time
+const JSONBIN_KEY = 'YOUR_JSONBIN_KEY';  // paste your JSONBin Master Key here
+const JSONBIN_ID  = 'YOUR_JSONBIN_ID';   // paste your Bin ID here after first controller save
+
 async function fetchConfig() {
-  const id  = localStorage.getItem('jsonbin_id');
-  const key = localStorage.getItem('jsonbin_key');
-  if (!id || !key) return null;
+  if (JSONBIN_KEY === 'YOUR_JSONBIN_KEY' || JSONBIN_ID === 'YOUR_JSONBIN_ID') return null;
   try {
-    const r = await fetch(`https://api.jsonbin.io/v3/b/${id}/latest`, {
-      headers: { 'X-Master-Key': key, 'X-Bin-Meta': 'false' }
+    const r = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}/latest`, {
+      headers: { 'X-Master-Key': JSONBIN_KEY, 'X-Bin-Meta': 'false' }
     });
     if (!r.ok) return null;
     return await r.json();
