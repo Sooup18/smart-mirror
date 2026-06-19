@@ -614,14 +614,27 @@ async function applySettings(settings) {
 async function updateWeather(location) {
   document.getElementById('weather-desc').textContent = 'Loading...';
   try {
-    const geo = await geocode(location);
-    if (!geo) { document.getElementById('weather-desc').textContent = 'Location not found'; return; }
-    const w = await fetchWeather(geo.lat, geo.lng);
+    let lat, lng;
+    if (location) {
+      const geo = await geocode(location);
+      if (geo) { lat=geo.lat; lng=geo.lng; }
+    }
+    // Fallback to browser geolocation if no location set or geocode failed
+    if (!lat) {
+      await new Promise((res, rej) => {
+        navigator.geolocation.getCurrentPosition(
+          p => { lat=p.coords.latitude; lng=p.coords.longitude; res(); },
+          () => rej(new Error('Geolocation denied')),
+          {timeout:5000}
+        );
+      });
+    }
+    const w = await fetchWeather(lat, lng);
     document.getElementById('weather-temp').textContent = Math.round(w.temperature_2m)+'°';
     document.getElementById('weather-desc').textContent = weatherDesc(w.weathercode);
-    document.getElementById('weather-loc').textContent  = location;
+    document.getElementById('weather-loc').textContent  = location || 'Current location';
   } catch(e) {
-    document.getElementById('weather-desc').textContent = 'Error';
+    document.getElementById('weather-desc').textContent = 'Unavailable';
     console.error('Weather error:', e);
   }
 }
@@ -857,6 +870,8 @@ async function boot() {
   if (sessionStorage.getItem('access_token')) {
     document.getElementById('auth-screen').style.display='none';
     document.getElementById('mirror-screen').style.display='block';
+    // Start weather immediately using geolocation
+    updateWeather('');
     // Load config from JSONBin
     const config=await fetchConfig();
     if (config) {
