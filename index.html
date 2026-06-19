@@ -511,8 +511,29 @@ function weatherDesc(code) {
   return 'Thunderstorm';
 }
 
-// ── Commute (disabled - requires server-side proxy) ───────────────
-async function fetchCommute(origin, destination) { return null; }
+const TOMTOM_KEY = 'JMSv6BsREv2ua4tJCtyyieyGEwRmjZC9';
+
+// ── Commute (TomTom Routing API) ──────────────────────────────────
+async function fetchCommute(origin, destination) {
+  try {
+    // First geocode both locations using Open-Meteo
+    const from = await geocode(origin);
+    const to   = await geocode(destination);
+    if (!from || !to) return null;
+    const url = `https://api.tomtom.com/routing/1/calculateRoute/${from.lat},${from.lng}:${to.lat},${to.lng}/json?traffic=true&travelMode=car&key=${TOMTOM_KEY}`;
+    const r = await fetch(url);
+    const d = await r.json();
+    if (d.routes?.[0]) {
+      const secs = d.routes[0].summary.travelTimeInSeconds;
+      const mins = Math.round(secs / 60);
+      const hrs  = Math.floor(mins / 60);
+      const rem  = mins % 60;
+      const duration = hrs > 0 ? `${hrs}h ${rem}m` : `${mins} min`;
+      return { duration, via: destination };
+    }
+  } catch(e) { console.error('Commute error:', e); }
+  return null;
+}
 
 // ── Clock ─────────────────────────────────────────────────────────
 function updateClock() {
@@ -549,10 +570,9 @@ async function watchConfig() {
     const hash = JSON.stringify(config);
     if (hash !== lastConfigHash) {
       lastConfigHash = hash;
+      localStorage.setItem('mirror_last_config', hash);
       if (config.layout)   applyLayout(config.layout);
-      if (config.settings) await applySettings(config.settings);
-      // Sync settings UI
-      if (config.settings) loadSettingsIntoUI(config.settings);
+      if (config.settings) { await applySettings(config.settings); loadSettingsIntoUI(config.settings); }
     }
   }
   setTimeout(watchConfig, 5000);
@@ -750,6 +770,20 @@ document.getElementById('close-btn').addEventListener('click', closeSettings);
 
 function openSettings() {
   menuBtn.classList.remove('visible');
+  // Sync latest config into uiState before showing
+  try {
+    const raw = localStorage.getItem('mirror_last_config');
+    if (raw) {
+      const c = JSON.parse(raw);
+      if (c.settings) loadSettingsIntoUI(c.settings);
+      if (c.layout) {
+        for (const m of MODULES_DEF) {
+          const cfg = c.layout[m.id];
+          if (cfg) uiState.modules[m.id] = {hidden:!!cfg.hidden, pos:cfg._pos||DEFAULT_POS[m.id]};
+        }
+      }
+    }
+  } catch {}
   settingsPanel.style.display='flex';
   renderSettingsUI();
 }
@@ -763,8 +797,9 @@ function loadSettingsIntoUI(settings) {
 }
 
 function renderSettingsUI() {
-  document.getElementById('s-location').value = uiState.location;
-  document.getElementById('s-location').oninput = e => { uiState.location = e.target.value; };
+  const locInput = document.getElementById('s-location');
+  locInput.value = uiState.location;
+  locInput.oninput = e => { uiState.location = e.target.value; };
   renderDests();
   renderToggles();
   renderChips();
@@ -868,6 +903,7 @@ async function boot() {
     const config=await fetchConfig();
     if (config) {
       lastConfigHash=JSON.stringify(config);
+      localStorage.setItem('mirror_last_config', lastConfigHash);
       if (config.layout)   applyLayout(config.layout);
       if (config.settings) {
         await applySettings(config.settings);
