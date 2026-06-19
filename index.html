@@ -478,9 +478,17 @@ function parsePlain(plain, durMs) {
 // ── Weather ───────────────────────────────────────────────────────
 async function geocode(location) {
   try {
-    const r = await fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(location)+'&count=1&language=en&format=json');
-    const d = await r.json();
+    // Try full string first
+    let r = await fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(location)+'&count=1&language=en&format=json');
+    let d = await r.json();
     if (d.results?.[0]) return {lat:d.results[0].latitude, lng:d.results[0].longitude};
+    // If that fails, try just the city name (before any comma)
+    const cityOnly = location.split(',')[0].trim();
+    if (cityOnly !== location) {
+      r = await fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(cityOnly)+'&count=1&language=en&format=json');
+      d = await r.json();
+      if (d.results?.[0]) return {lat:d.results[0].latitude, lng:d.results[0].longitude};
+    }
   } catch {}
   return null;
 }
@@ -503,16 +511,8 @@ function weatherDesc(code) {
   return 'Thunderstorm';
 }
 
-// ── Commute ───────────────────────────────────────────────────────
-async function fetchCommute(origin, destination) {
-  const r = await fetch('https://maps.googleapis.com/maps/api/directions/json?origin='+encodeURIComponent(origin)+'&destination='+encodeURIComponent(destination)+'&departure_time=now&key='+MAPS_KEY);
-  const d = await r.json();
-  if (d.routes?.[0]?.legs?.[0]) {
-    const leg = d.routes[0].legs[0];
-    return { duration:leg.duration_in_traffic?.text||leg.duration.text, via:d.routes[0].summary };
-  }
-  return null;
-}
+// ── Commute (disabled - requires server-side proxy) ───────────────
+async function fetchCommute(origin, destination) { return null; }
 
 // ── Clock ─────────────────────────────────────────────────────────
 function updateClock() {
