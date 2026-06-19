@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Mirror</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background:#000;
+  color:#fff;
+  font-family:'Helvetica Neue',Arial,sans-serif;
+  height:100vh;
+  overflow:hidden;
+  user-select:none;
+}
+
+/* ── AUTH ── */
+#auth-screen {
+  display:flex; flex-direction:column; align-items:center;
+  justify-content:center; height:100vh; gap:24px;
+  text-align:center; padding:40px;
+}
+#auth-screen h1 { font-size:2rem; font-weight:300; letter-spacing:0.1em; }
+#auth-screen p  { font-size:1rem; color:rgba(255,255,255,0.5); max-width:480px; line-height:1.6; }
+#auth-btn {
+  background:#1DB954; color:#000; border:none; border-radius:50px;
+  padding:16px 40px; font-size:1rem; font-weight:600; cursor:pointer;
+  letter-spacing:0.05em; transition:opacity 0.2s;
+}
+#auth-btn:hover { opacity:0.85; }
+#auth-status { font-size:0.85rem; color:rgba(255,255,255,0.4); min-height:1.2em; }
+
+/* ── MIRROR ── */
+#mirror-screen {
+  display:none; position:relative;
+  width:100vw; height:100vh;
+}
+
+/* ── MODULES ── */
+.module {
+  position:absolute;
+  transition:top 0.5s cubic-bezier(0.4,0,0.2,1),
+             left 0.5s cubic-bezier(0.4,0,0.2,1),
+             opacity 0.5s ease;
+}
+.module.hidden { opacity:0; pointer-events:none; }
+
+#mod-clock {
+  top:40px; right:52px;
+  font-size:3rem; font-weight:200;
+  color:rgba(255,255,255,0.85);
+  letter-spacing:0.05em; text-align:right; line-height:1;
+}
+#mod-clock .date {
+  font-size:0.9rem; color:rgba(255,255,255,0.35);
+  letter-spacing:0.12em; margin-top:6px;
+}
+
+#mod-spotify { bottom:48px; left:48px; width:420px; }
+#track-info  { display:flex; align-items:center; gap:16px; margin-bottom:16px; }
+#album-art   {
+  width:64px; height:64px; border-radius:8px;
+  object-fit:cover; opacity:0.9; flex-shrink:0;
+  background:rgba(255,255,255,0.05); transition:opacity 0.4s ease;
+}
+#track-name   { font-size:1.2rem; font-weight:500; line-height:1.3; }
+#track-artist { font-size:0.9rem; color:rgba(255,255,255,0.45); margin-top:3px; }
+#progress-wrap { height:2px; background:rgba(255,255,255,0.12); border-radius:2px; overflow:hidden; }
+#progress-bar  { height:100%; background:rgba(255,255,255,0.5); width:0%; transition:width 0.5s linear; }
+
+#mod-lyrics {
+  top:50%; left:50%; transform:translate(-50%,-50%);
+  width:70vw; text-align:center;
+}
+.lyric-line {
+  font-size:2rem; font-weight:400; line-height:1.6;
+  color:rgba(255,255,255,0.15); opacity:0.4;
+  transform:translateY(6px) scale(0.96);
+  transition:color 0.7s cubic-bezier(0.4,0,0.2,1),
+             font-size 0.7s cubic-bezier(0.4,0,0.2,1),
+             opacity 0.7s cubic-bezier(0.4,0,0.2,1),
+             transform 0.7s cubic-bezier(0.4,0,0.2,1);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  will-change:transform,opacity,color;
+}
+.lyric-line.active { color:rgba(255,255,255,1); font-size:2.5rem; opacity:1; transform:translateY(0) scale(1); }
+.lyric-line.near   { color:rgba(255,255,255,0.4); opacity:0.7; transform:translateY(3px) scale(0.982); }
+#lyrics-status { font-size:1.1rem; font-weight:300; color:rgba(255,255,255,0.2); letter-spacing:0.08em; }
+
+#mod-weather { top:40px; left:52px; min-width:180px; }
+#weather-temp { font-size:3rem; font-weight:200; color:rgba(255,255,255,0.85); line-height:1; }
+#weather-desc { font-size:0.85rem; color:rgba(255,255,255,0.35); letter-spacing:0.1em; margin-top:6px; text-transform:uppercase; }
+#weather-loc  { font-size:0.75rem; color:rgba(255,255,255,0.2); margin-top:4px; }
+
+#mod-commute { bottom:48px; right:52px; min-width:200px; text-align:right; }
+.commute-item  { margin-bottom:16px; }
+.commute-label { font-size:0.75rem; color:rgba(255,255,255,0.25); letter-spacing:0.12em; text-transform:uppercase; margin-bottom:4px; }
+.commute-time  { font-size:2rem; font-weight:200; color:rgba(255,255,255,0.8); line-height:1; }
+.commute-via   { font-size:0.75rem; color:rgba(255,255,255,0.25); margin-top:3px; }
+
+/* ── MENU BUTTON ── */
+#menu-btn {
+  position:fixed;
+  top:20px; left:50%;
+  transform:translateX(-50%);
+  z-index:100;
+  background:rgba(255,255,255,0.08);
+  border:1px solid rgba(255,255,255,0.15);
+  border-radius:50px;
+  padding:10px 20px;
+  cursor:pointer;
+  display:flex; flex-direction:column; gap:5px; align-items:center;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity 0.3s ease;
+}
+#menu-btn.visible { opacity:1; pointer-events:all; }
+#menu-btn span {
+  display:block; width:22px; height:2px;
+  background:rgba(255,255,255,0.8); border-radius:2px;
+}
+
+/* ── SETTINGS PANEL ── */
+#settings-panel {
+  position:fixed; inset:0; z-index:200;
+  background:rgba(0,0,0,0.95);
+  display:none; flex-direction:column;
+  overflow-y:auto;
+}
+
+.settings-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:32px 48px 20px;
+  border-bottom:1px solid rgba(255,255,255,0.08);
+  flex-shrink:0;
+}
+.settings-header h2 { font-size:1.4rem; font-weight:300; letter-spacing:0.08em; }
+#close-btn {
+  background:rgba(255,255,255,0.08);
+  border:1px solid rgba(255,255,255,0.15);
+  border-radius:50%;
+  color:#fff; font-size:1.4rem;
+  width:44px; height:44px;
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+  transition:background 0.2s;
+}
+#close-btn:hover { background:rgba(255,255,255,0.15); }
+
+.settings-body {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:0;
+  flex:1;
+}
+
+.settings-col {
+  padding:32px 48px;
+  border-right:1px solid rgba(255,255,255,0.06);
+}
+.settings-col:last-child { border-right:none; }
+
+.s-section { margin-bottom:36px; }
+.s-title {
+  font-size:0.7rem; letter-spacing:0.15em;
+  color:rgba(255,255,255,0.3); text-transform:uppercase; margin-bottom:16px;
+}
+
+/* inputs */
+.s-input {
+  width:100%;
+  background:rgba(255,255,255,0.06);
+  border:1px solid rgba(255,255,255,0.12);
+  border-radius:10px; color:#fff;
+  font-size:1rem; padding:12px 16px;
+  outline:none; margin-bottom:10px;
+  transition:border-color 0.2s;
+  font-family:inherit;
+}
+.s-input:focus { border-color:rgba(255,255,255,0.35); }
+.s-input::placeholder { color:rgba(255,255,255,0.2); }
+
+/* toggles */
+.module-row {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:12px 0; border-bottom:1px solid rgba(255,255,255,0.05);
+}
+.module-row:last-child { border-bottom:none; }
+.module-name { font-size:0.95rem; }
+.module-sub  { font-size:0.75rem; color:rgba(255,255,255,0.3); margin-top:2px; }
+.toggle { position:relative; width:48px; height:28px; flex-shrink:0; }
+.toggle input { opacity:0; width:0; height:0; }
+.toggle-track {
+  position:absolute; inset:0;
+  background:rgba(255,255,255,0.15); border-radius:14px;
+  cursor:pointer; transition:background 0.3s;
+}
+.toggle input:checked + .toggle-track { background:#1DB954; }
+.toggle-track::after {
+  content:''; position:absolute; top:4px; left:4px;
+  width:20px; height:20px; border-radius:50%; background:#fff;
+  transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+.toggle input:checked + .toggle-track::after { transform:translateX(20px); }
+
+/* position grid */
+.pos-grid {
+  display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:12px;
+}
+.pos-btn {
+  background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1);
+  border-radius:10px; color:rgba(255,255,255,0.5);
+  font-size:0.8rem; padding:12px 4px;
+  cursor:pointer; text-align:center; line-height:1.3;
+  transition:all 0.2s;
+}
+.pos-btn:hover { background:rgba(255,255,255,0.12); }
+.pos-btn.active { background:rgba(255,255,255,0.15); border-color:rgba(255,255,255,0.4); color:#fff; }
+.pos-btn .icon  { font-size:1.2rem; display:block; margin-bottom:4px; }
+
+/* module chips for layout selector */
+.chip-row { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+.chip {
+  background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.12);
+  border-radius:20px; color:rgba(255,255,255,0.5);
+  font-size:0.8rem; padding:7px 16px; cursor:pointer; transition:all 0.2s;
+}
+.chip.active { background:rgba(255,255,255,0.15); border-color:rgba(255,255,255,0.4); color:#fff; }
+
+/* destination rows */
+.dest-row { display:flex; gap:8px; margin-bottom:8px; }
+.dest-row .s-input { margin-bottom:0; flex:1; }
+.dest-row .s-input:first-child { max-width:110px; }
+.del-btn {
+  background:none; border:1px solid rgba(255,255,255,0.12);
+  border-radius:8px; color:rgba(255,255,255,0.35);
+  font-size:1.2rem; width:42px; height:42px; flex-shrink:0;
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+  transition:all 0.2s;
+}
+.del-btn:hover { border-color:rgba(255,80,80,0.5); color:rgba(255,80,80,0.8); }
+.add-btn {
+  background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1);
+  border-radius:10px; color:rgba(255,255,255,0.5);
+  font-size:0.85rem; padding:11px; cursor:pointer;
+  width:100%; text-align:center; margin-top:4px; transition:all 0.2s;
+}
+.add-btn:hover { background:rgba(255,255,255,0.12); }
+
+/* save bar */
+.settings-footer {
+  padding:20px 48px;
+  border-top:1px solid rgba(255,255,255,0.08);
+  display:flex; gap:16px; align-items:center; flex-shrink:0;
+}
+#save-btn {
+  background:#1DB954; border:none; border-radius:12px;
+  color:#000; font-size:1rem; font-weight:600;
+  padding:14px 40px; cursor:pointer; transition:opacity 0.2s;
+}
+#save-btn:hover { opacity:0.85; }
+#save-status { font-size:0.85rem; color:rgba(255,255,255,0.35); }
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="auth-screen">
+  <h1>Smart Mirror</h1>
+  <p>Connect your Spotify account to display real-time synced lyrics.</p>
+  <button id="auth-btn">Connect Spotify</button>
+  <div id="auth-status"></div>
+</div>
+
+<!-- MIRROR -->
+<div id="mirror-screen">
+  <div class="module" id="mod-clock">
+    <div id="clock-time">--:--</div>
+    <div class="date" id="clock-date"></div>
+  </div>
+  <div class="module" id="mod-weather">
+    <div id="weather-temp">--°</div>
+    <div id="weather-desc">Loading...</div>
+    <div id="weather-loc"></div>
+  </div>
+  <div class="module" id="mod-lyrics">
+    <div id="lyrics-status">Nothing playing</div>
+  </div>
+  <div class="module" id="mod-spotify">
+    <div id="track-info">
+      <img id="album-art" src="" alt="" />
+      <div>
+        <div id="track-name">-</div>
+        <div id="track-artist">-</div>
+      </div>
+    </div>
+    <div id="progress-wrap"><div id="progress-bar"></div></div>
+  </div>
+  <div class="module" id="mod-commute">
+    <div id="commute-destinations"></div>
+  </div>
+</div>
+
+<!-- MENU BUTTON (appears on tap) -->
+<div id="menu-btn">
+  <span></span><span></span><span></span>
+</div>
+
+<!-- SETTINGS PANEL -->
+<div id="settings-panel">
+  <div class="settings-header">
+    <h2>Settings</h2>
+    <button id="close-btn">x</button>
+  </div>
+
+  <div class="settings-body">
+    <!-- LEFT COL -->
+    <div class="settings-col">
+
+      <div class="s-section">
+        <div class="s-title">Location & Weather</div>
+        <input class="s-input" id="s-location" placeholder="e.g. Mount Pleasant, MI" />
+      </div>
+
+      <div class="s-section">
+        <div class="s-title">Commute Destinations</div>
+        <div id="s-dest-list"></div>
+        <button class="add-btn" id="s-add-dest">+ Add destination</button>
+      </div>
+
+      <div class="s-section">
+        <div class="s-title">Modules</div>
+        <div id="s-module-toggles"></div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT COL -->
+    <div class="settings-col">
+      <div class="s-section">
+        <div class="s-title">Layout - select a module</div>
+        <div class="chip-row" id="s-chips"></div>
+        <div class="s-title" id="s-pos-label" style="margin-top:8px">then choose position</div>
+        <div class="pos-grid" id="s-pos-grid">
+          <button class="pos-btn" data-pos="top-left">    <span class="icon">&#8598;</span>Top Left</button>
+          <button class="pos-btn" data-pos="top-center">  <span class="icon">&#8593;</span>Top Center</button>
+          <button class="pos-btn" data-pos="top-right">   <span class="icon">&#8599;</span>Top Right</button>
+          <button class="pos-btn" data-pos="mid-left">    <span class="icon">&#8592;</span>Mid Left</button>
+          <button class="pos-btn" data-pos="center">      <span class="icon">&#9711;</span>Center</button>
+          <button class="pos-btn" data-pos="mid-right">   <span class="icon">&#8594;</span>Mid Right</button>
+          <button class="pos-btn" data-pos="bottom-left"> <span class="icon">&#8601;</span>Bot Left</button>
+          <button class="pos-btn" data-pos="bottom-center"><span class="icon">&#8595;</span>Bot Center</button>
+          <button class="pos-btn" data-pos="bottom-right"><span class="icon">&#8600;</span>Bot Right</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="settings-footer">
+    <button id="save-btn">Save Changes</button>
+    <div id="save-status"></div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────
+const CLIENT_ID    = 'ab78c48471d74d01a97ba682056e54af';
+const REDIRECT_URI = 'https://sooup18.github.io/smart-mirror';
+const MAPS_KEY     = 'AIzaSyC7-lC45v-acgOO5EPPVLq65vNjSiRG-54';
+const JSONBIN_KEY  = '$2a$10$MIse8uXCihxIRyLhsyrpKemdnBt2gJl0tEKo0xKh4rC96NHaMD/XG';
+const JSONBIN_ID   = '6a2f5648f5f4af5e29f27b26';
+
+// ── PKCE ─────────────────────────────────────────────────────────
+function randomBytes(n) {
+  const a = new Uint8Array(n);
+  crypto.getRandomValues(a);
+  return Array.from(a, b => b.toString(16).padStart(2,'0')).join('');
+}
+function base64url(buf) {
+  return btoa(String.fromCharCode(...new Uint8Array(buf)))
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+async function sha256(s) {
+  return crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+}
+async function startAuth() {
+  const v = randomBytes(64);
+  const c = base64url(await sha256(v));
+  sessionStorage.setItem('pkce_verifier', v);
+  const p = new URLSearchParams({
+    client_id:CLIENT_ID, response_type:'code', redirect_uri:REDIRECT_URI,
+    scope:'user-read-playback-state user-read-currently-playing',
+    code_challenge_method:'S256', code_challenge:c,
+  });
+  window.location.href = 'https://accounts.spotify.com/authorize?' + p;
+}
+async function exchangeCode(code) {
+  const v = sessionStorage.getItem('pkce_verifier');
+  const r = await fetch('https://accounts.spotify.com/api/token', {
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body: new URLSearchParams({
+      grant_type:'authorization_code', code,
+      redirect_uri:REDIRECT_URI, client_id:CLIENT_ID, code_verifier:v,
+    }),
+  });
+  const d = await r.json();
+  if (d.access_token) {
+    sessionStorage.setItem('access_token', d.access_token);
+    sessionStorage.setItem('refresh_token', d.refresh_token);
+    sessionStorage.setItem('token_expiry', Date.now() + d.expires_in*1000);
+    history.replaceState({}, '', window.location.pathname);
+    return true;
+  }
+  return false;
+}
+async function refreshToken() {
+  const rt = sessionStorage.getItem('refresh_token');
+  if (!rt) return false;
+  const r = await fetch('https://accounts.spotify.com/api/token', {
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body: new URLSearchParams({ grant_type:'refresh_token', refresh_token:rt, client_id:CLIENT_ID }),
+  });
+  const d = await r.json();
+  if (d.access_token) {
+    sessionStorage.setItem('access_token', d.access_token);
+    sessionStorage.setItem('token_expiry', Date.now() + d.expires_in*1000);
+    if (d.refresh_token) sessionStorage.setItem('refresh_token', d.refresh_token);
+    return true;
+  }
+  return false;
+}
+async function getToken() {
+  if (Date.now() > parseInt(sessionStorage.getItem('token_expiry')||0) - 30000) await refreshToken();
+  return sessionStorage.getItem('access_token');
+}
+
+// ── Spotify ───────────────────────────────────────────────────────
+async function getNowPlaying() {
+  const token = await getToken();
+  if (!token) return null;
+  const r = await fetch('https://api.spotify.com/v1/me/player/currently-playing',
+    { headers:{Authorization:'Bearer '+token} });
+  if (r.status===204||r.status===401||r.status===404) return null;
+  if (!r.ok) return null;
+  return r.json();
+}
+
+// ── Lyrics ────────────────────────────────────────────────────────
+async function fetchLyrics(title, artist, album, durMs) {
+  try {
+    const r = await fetch('https://lrclib.net/api/get?' + new URLSearchParams({
+      track_name:title, artist_name:artist, album_name:album, duration:Math.round(durMs/1000),
+    }));
+    if (!r.ok) return null;
+    const d = await r.json();
+    if (d.syncedLyrics) return parseLRC(d.syncedLyrics);
+    if (d.plainLyrics)  return parsePlain(d.plainLyrics, durMs);
+  } catch {}
+  return null;
+}
+function parseLRC(lrc) {
+  const lines = [];
+  for (const line of lrc.split('\n')) {
+    const m = line.match(/^\[(\d+):(\d+\.\d+)\](.*)/);
+    if (m) { const ms=(parseInt(m[1])*60+parseFloat(m[2]))*1000; const text=m[3].trim(); if(text) lines.push({ms,text}); }
+  }
+  return {synced:true,lines};
+}
+function parsePlain(plain, durMs) {
+  const raw = plain.split('\n').map(t=>t.trim()).filter(Boolean);
+  const step = durMs/(raw.length+1);
+  return {synced:false,lines:raw.map((text,i)=>({ms:step*(i+1),text}))};
+}
+
+// ── Weather ───────────────────────────────────────────────────────
+async function geocode(location) {
+  try {
+    const r = await fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(location)+'&count=1&language=en&format=json');
+    const d = await r.json();
+    if (d.results?.[0]) return {lat:d.results[0].latitude, lng:d.results[0].longitude};
+  } catch {}
+  return null;
+}
+async function fetchWeather(lat, lng) {
+  const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude='+lat+'&longitude='+lng+'&current=temperature_2m,weathercode&temperature_unit=fahrenheit');
+  const d = await r.json();
+  return d.current;
+}
+function weatherDesc(code) {
+  if (code===0) return 'Clear sky';
+  if (code<=2)  return 'Partly cloudy';
+  if (code===3) return 'Overcast';
+  if (code<=9)  return 'Foggy';
+  if (code<=29) return 'Rain';
+  if (code<=39) return 'Snow';
+  if (code<=59) return 'Drizzle';
+  if (code<=69) return 'Rain';
+  if (code<=79) return 'Snow';
+  if (code<=84) return 'Showers';
+  return 'Thunderstorm';
+}
+
+// ── Commute ───────────────────────────────────────────────────────
+async function fetchCommute(origin, destination) {
+  const r = await fetch('https://maps.googleapis.com/maps/api/directions/json?origin='+encodeURIComponent(origin)+'&destination='+encodeURIComponent(destination)+'&departure_time=now&key='+MAPS_KEY);
+  const d = await r.json();
+  if (d.routes?.[0]?.legs?.[0]) {
+    const leg = d.routes[0].legs[0];
+    return { duration:leg.duration_in_traffic?.text||leg.duration.text, via:d.routes[0].summary };
+  }
+  return null;
+}
+
+// ── Clock ─────────────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock-time').textContent = now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('clock-date').textContent = now.toLocaleDateString([],{weekday:'long',month:'long',day:'numeric'}).toUpperCase();
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// ── JSONBin sync ──────────────────────────────────────────────────
+async function fetchConfig() {
+  try {
+    const r = await fetch('https://api.jsonbin.io/v3/b/'+JSONBIN_ID+'/latest', {
+      headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':'false'}
+    });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch { return null; }
+}
+async function saveConfig(data) {
+  try {
+    await fetch('https://api.jsonbin.io/v3/b/'+JSONBIN_ID, {
+      method:'PUT',
+      headers:{'Content-Type':'application/json','X-Master-Key':JSONBIN_KEY},
+      body:JSON.stringify(data),
+    });
+  } catch {}
+}
+let lastConfigHash = '';
+async function watchConfig() {
+  const config = await fetchConfig();
+  if (config) {
+    const hash = JSON.stringify(config);
+    if (hash !== lastConfigHash) {
+      lastConfigHash = hash;
+      if (config.layout)   applyLayout(config.layout);
+      if (config.settings) await applySettings(config.settings);
+      // Sync settings UI
+      if (config.settings) loadSettingsIntoUI(config.settings);
+    }
+  }
+  setTimeout(watchConfig, 5000);
+}
+
+// ── Layout ────────────────────────────────────────────────────────
+const MODULE_IDS = ['mod-clock','mod-weather','mod-lyrics','mod-spotify','mod-commute'];
+const POS_MAP = {
+  'top-left':      {top:'40px',   left:'52px',  bottom:'',     right:'',    transform:''},
+  'top-center':    {top:'40px',   left:'50%',   bottom:'',     right:'',    transform:'translateX(-50%)'},
+  'top-right':     {top:'40px',   right:'52px', bottom:'',     left:'',     transform:''},
+  'mid-left':      {top:'50%',    left:'52px',  bottom:'',     right:'',    transform:'translateY(-50%)'},
+  'center':        {top:'50%',    left:'50%',   bottom:'',     right:'',    transform:'translate(-50%,-50%)'},
+  'mid-right':     {top:'50%',    right:'52px', bottom:'',     left:'',     transform:'translateY(-50%)'},
+  'bottom-left':   {bottom:'48px',left:'52px',  top:'',        right:'',    transform:''},
+  'bottom-center': {bottom:'48px',left:'50%',   top:'',        right:'',    transform:'translateX(-50%)'},
+  'bottom-right':  {bottom:'48px',right:'52px', top:'',        left:'',     transform:''},
+};
+const DEFAULT_POS = {
+  'mod-clock':'top-right','mod-weather':'top-left','mod-lyrics':'center',
+  'mod-spotify':'bottom-left','mod-commute':'bottom-right',
+};
+
+function applyLayout(layout) {
+  for (const id of MODULE_IDS) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    const cfg = layout[id];
+    if (!cfg) continue;
+    el.style.top=cfg.top||''; el.style.bottom=cfg.bottom||'';
+    el.style.left=cfg.left||''; el.style.right=cfg.right||'';
+    el.style.transform=cfg.transform||'';
+    if (cfg.hidden) el.classList.add('hidden');
+    else            el.classList.remove('hidden');
+  }
+}
+
+// ── Settings ──────────────────────────────────────────────────────
+let weatherTimer=null, commuteTimer=null, lastLocation='__unset__', lastDests=[];
+
+async function applySettings(settings) {
+  if (!settings) return;
+  if (settings.location) {
+    if (settings.location !== lastLocation) {
+      lastLocation = settings.location;
+      if (weatherTimer) clearInterval(weatherTimer);
+      await updateWeather(settings.location);
+      weatherTimer = setInterval(()=>updateWeather(settings.location), 10*60*1000);
+    }
+  }
+  const dests = settings.destinations||[];
+  if (JSON.stringify(dests)!==JSON.stringify(lastDests) && settings.location) {
+    lastDests = dests;
+    if (commuteTimer) clearInterval(commuteTimer);
+    await updateCommute(settings.location, dests);
+    commuteTimer = setInterval(()=>updateCommute(settings.location,dests), 5*60*1000);
+  }
+}
+async function updateWeather(location) {
+  if (!location || !location.trim()) {
+    document.getElementById('weather-temp').textContent = '--°';
+    document.getElementById('weather-desc').textContent = 'Set location in settings';
+    document.getElementById('weather-loc').textContent  = '';
+    return;
+  }
+  document.getElementById('weather-desc').textContent = 'Loading...';
+  try {
+    const geo = await geocode(location.trim());
+    if (!geo) { document.getElementById('weather-desc').textContent = 'Location not found'; return; }
+    const w = await fetchWeather(geo.lat, geo.lng);
+    document.getElementById('weather-temp').textContent = Math.round(w.temperature_2m)+'°';
+    document.getElementById('weather-desc').textContent = weatherDesc(w.weathercode);
+    document.getElementById('weather-loc').textContent  = location;
+  } catch(e) {
+    document.getElementById('weather-desc').textContent = 'Unavailable';
+    console.error('Weather error:', e);
+  }
+}
+async function updateCommute(origin, destinations) {
+  const el = document.getElementById('commute-destinations');
+  el.innerHTML = '';
+  for (const dest of destinations) {
+    try {
+      const info = await fetchCommute(origin, dest.address);
+      if (!info) continue;
+      const div = document.createElement('div');
+      div.className = 'commute-item';
+      div.innerHTML = '<div class="commute-label">'+dest.label+'</div><div class="commute-time">'+info.duration+'</div><div class="commute-via">via '+info.via+'</div>';
+      el.appendChild(div);
+    } catch {}
+  }
+}
+
+// ── Lyric engine ──────────────────────────────────────────────────
+const VISIBLE=7, ACTIVE_POS=3;
+let lineEls=[];
+function buildLineEls() {
+  const wrap=document.getElementById('mod-lyrics');
+  wrap.innerHTML=''; lineEls=[];
+  for(let i=0;i<VISIBLE;i++){const el=document.createElement('div');el.className='lyric-line';wrap.appendChild(el);lineEls.push(el);}
+}
+function renderAt(activeIdx, lines) {
+  const start=activeIdx-ACTIVE_POS;
+  for(let i=0;i<VISIBLE;i++){
+    const li=start+i, el=lineEls[i];
+    el.textContent=(li>=0&&li<lines.length)?lines[li].text:'';
+    el.className='lyric-line';
+    if(i===ACTIVE_POS) el.classList.add('active');
+    else if(Math.abs(i-ACTIVE_POS)===1) el.classList.add('near');
+  }
+}
+function findActiveIdx(ms, lines) {
+  let idx=0;
+  for(let i=0;i<lines.length;i++){if(lines[i].ms<=ms)idx=i;else break;}
+  return idx;
+}
+function setLyricStatus(msg) {
+  document.getElementById('mod-lyrics').innerHTML='<div id="lyrics-status">'+msg+'</div>';
+  lineEls=[];
+}
+
+// ── Playback ──────────────────────────────────────────────────────
+let lastTrackId=null,currentLyrics=null,lastActiveIdx=-1,progressMs=0,fetchedAt=0,durationMs=0,isPlaying=false;
+async function poll() {
+  const data = await getNowPlaying();
+  if (!data||!data.item) {
+    setLyricStatus('Nothing playing');
+    lastTrackId=null; currentLyrics=null;
+    document.getElementById('track-name').textContent='-';
+    document.getElementById('track-artist').textContent='-';
+    document.getElementById('album-art').src='';
+    document.getElementById('progress-bar').style.width='0%';
+    return;
+  }
+  const item=data.item;
+  isPlaying=data.is_playing; progressMs=data.progress_ms||0;
+  fetchedAt=Date.now(); durationMs=item.duration_ms||0;
+  if (item.id!==lastTrackId) {
+    lastTrackId=item.id; lastActiveIdx=-1; currentLyrics=null;
+    document.getElementById('track-name').textContent=item.name;
+    document.getElementById('track-artist').textContent=item.artists.map(a=>a.name).join(', ');
+    const img=item.album?.images?.[1]||item.album?.images?.[0];
+    document.getElementById('album-art').src=img?.url||'';
+    setLyricStatus('Loading lyrics...');
+    currentLyrics=await fetchLyrics(item.name,item.artists[0]?.name||'',item.album?.name||'',durationMs);
+    if(currentLyrics?.lines?.length){buildLineEls();lastActiveIdx=-1;}
+    else setLyricStatus('No lyrics found');
+  }
+  updateProgress();
+}
+function updateProgress() {
+  if (!durationMs) return;
+  const elapsed=isPlaying?Date.now()-fetchedAt:0;
+  const estimated=Math.min(progressMs+elapsed,durationMs);
+  document.getElementById('progress-bar').style.width=((estimated/durationMs)*100).toFixed(2)+'%';
+  if(currentLyrics?.lines?.length&&lineEls.length){
+    const idx=findActiveIdx(estimated,currentLyrics.lines);
+    if(idx!==lastActiveIdx){lastActiveIdx=idx;renderAt(idx,currentLyrics.lines);}
+  }
+}
+function tick(){updateProgress();requestAnimationFrame(tick);}
+
+// ── Menu / Settings UI ────────────────────────────────────────────
+const MODULES_DEF = [
+  {id:'mod-clock',   label:'Clock',   sub:'Time & date'},
+  {id:'mod-weather', label:'Weather', sub:'Current conditions'},
+  {id:'mod-lyrics',  label:'Lyrics',  sub:'Synced song lyrics'},
+  {id:'mod-spotify', label:'Spotify', sub:'Now playing'},
+  {id:'mod-commute', label:'Commute', sub:'Drive time'},
+];
+
+let uiState = {
+  location:'', destinations:[],
+  modules: Object.fromEntries(MODULES_DEF.map(m=>[m.id,{hidden:false,pos:DEFAULT_POS[m.id]||'center'}]))
+};
+let selectedMod = null;
+let menuTimeout = null;
+const menuBtn      = document.getElementById('menu-btn');
+const settingsPanel= document.getElementById('settings-panel');
+
+// Tap anywhere on mirror to show menu button
+document.getElementById('mirror-screen').addEventListener('click', e => {
+  if (e.target.closest('#settings-panel')) return;
+  menuBtn.classList.add('visible');
+  clearTimeout(menuTimeout);
+  menuTimeout = setTimeout(()=>menuBtn.classList.remove('visible'), 3000);
+});
+
+menuBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  openSettings();
+});
+
+document.getElementById('close-btn').addEventListener('click', closeSettings);
+
+function openSettings() {
+  menuBtn.classList.remove('visible');
+  settingsPanel.style.display='flex';
+  renderSettingsUI();
+}
+function closeSettings() {
+  settingsPanel.style.display='none';
+}
+
+function loadSettingsIntoUI(settings) {
+  uiState.location = settings.location || '';
+  uiState.destinations = settings.destinations || [];
+}
+
+function renderSettingsUI() {
+  document.getElementById('s-location').value = uiState.location;
+  document.getElementById('s-location').oninput = e => { uiState.location = e.target.value; };
+  renderDests();
+  renderToggles();
+  renderChips();
+  updatePosGrid();
+}
+
+function renderDests() {
+  const list = document.getElementById('s-dest-list');
+  list.innerHTML='';
+  uiState.destinations.forEach((d,i)=>{
+    const row=document.createElement('div');
+    row.className='dest-row';
+    row.innerHTML='<input class="s-input" placeholder="Label" value="'+(d.label||'')+'"/><input class="s-input" placeholder="Address" value="'+(d.address||'')+'"/><button class="del-btn">x</button>';
+    const [labelIn,addrIn]=row.querySelectorAll('input');
+    labelIn.oninput=e=>{uiState.destinations[i].label=e.target.value;};
+    addrIn.oninput=e=>{uiState.destinations[i].address=e.target.value;};
+    row.querySelector('.del-btn').onclick=()=>{uiState.destinations.splice(i,1);renderDests();};
+    list.appendChild(row);
+  });
+}
+document.getElementById('s-add-dest').onclick=()=>{uiState.destinations.push({label:'',address:''});renderDests();};
+
+function renderToggles() {
+  const wrap=document.getElementById('s-module-toggles');
+  wrap.innerHTML='';
+  for (const m of MODULES_DEF) {
+    const row=document.createElement('div');
+    row.className='module-row';
+    const checked=!uiState.modules[m.id]?.hidden;
+    row.innerHTML='<div><div class="module-name">'+m.label+'</div><div class="module-sub">'+m.sub+'</div></div><label class="toggle"><input type="checkbox" '+(checked?'checked':'')+' data-id="'+m.id+'"/><div class="toggle-track"></div></label>';
+    row.querySelector('input').onchange=e=>{uiState.modules[e.target.dataset.id].hidden=!e.target.checked;};
+    wrap.appendChild(row);
+  }
+}
+
+function renderChips() {
+  const row=document.getElementById('s-chips');
+  row.innerHTML='';
+  for (const m of MODULES_DEF) {
+    const chip=document.createElement('button');
+    chip.className='chip'+(selectedMod===m.id?' active':'');
+    chip.textContent=m.label;
+    chip.onclick=()=>{selectedMod=(selectedMod===m.id)?null:m.id;renderChips();updatePosGrid();};
+    row.appendChild(chip);
+  }
+}
+
+function updatePosGrid() {
+  const label=document.getElementById('s-pos-label');
+  label.textContent=selectedMod?'Choose position for '+MODULES_DEF.find(m=>m.id===selectedMod)?.label:'Select a module above';
+  document.querySelectorAll('.pos-btn').forEach(btn=>{
+    btn.classList.toggle('active',!!selectedMod&&uiState.modules[selectedMod]?.pos===btn.dataset.pos);
+  });
+}
+document.querySelectorAll('.pos-btn').forEach(btn=>{
+  btn.onclick=()=>{
+    if(!selectedMod)return;
+    uiState.modules[selectedMod].pos=btn.dataset.pos;
+    updatePosGrid();
+  };
+});
+
+// ── Save ──────────────────────────────────────────────────────────
+document.getElementById('save-btn').onclick = async () => {
+  const st=document.getElementById('save-status');
+  st.textContent='Saving...';
+  const layout={};
+  for (const m of MODULES_DEF) {
+    const mod=uiState.modules[m.id];
+    const pos=POS_MAP[mod.pos]||POS_MAP['center'];
+    layout[m.id]={...pos,hidden:mod.hidden,_pos:mod.pos};
+  }
+  const settings={
+    location:uiState.location,
+    destinations:uiState.destinations.filter(d=>d.address),
+  };
+  applyLayout(layout);
+  await applySettings(settings);
+  await saveConfig({layout,settings});
+  lastConfigHash=JSON.stringify({layout,settings});
+  st.textContent='Saved!';
+  setTimeout(()=>{st.textContent='';closeSettings();},1200);
+};
+
+// ── Boot ──────────────────────────────────────────────────────────
+document.getElementById('auth-btn').addEventListener('click', startAuth);
+
+async function boot() {
+  const params=new URLSearchParams(window.location.search);
+  const code=params.get('code');
+  if (code) {
+    document.getElementById('auth-status').textContent='Connecting to Spotify...';
+    const ok=await exchangeCode(code);
+    if (!ok){document.getElementById('auth-status').textContent='Auth failed - try again.';return;}
+  }
+  if (sessionStorage.getItem('access_token')) {
+    document.getElementById('auth-screen').style.display='none';
+    document.getElementById('mirror-screen').style.display='block';
+    // Load config from JSONBin
+    const config=await fetchConfig();
+    if (config) {
+      lastConfigHash=JSON.stringify(config);
+      if (config.layout)   applyLayout(config.layout);
+      if (config.settings) {
+        await applySettings(config.settings);
+        loadSettingsIntoUI(config.settings);
+      }
+    }
+    watchConfig();
+    requestAnimationFrame(tick);
+    await poll();
+    setInterval(poll,3000);
+  }
+}
+
+boot();
+</script>
+</body>
+</html>
