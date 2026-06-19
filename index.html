@@ -842,6 +842,7 @@ document.getElementById('save-btn').onclick = async () => {
     destinations:uiState.destinations.filter(d=>d.address),
   };
   applyLayout(layout);
+  lastLocation = '__unset__'; // force weather to refresh
   await applySettings(settings);
   await saveConfig({layout,settings});
   lastConfigHash=JSON.stringify({layout,settings});
